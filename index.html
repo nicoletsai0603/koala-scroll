@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>小熊加鈣繪本</title>
+<meta name="description" content="樂天小熊新配方：營養加鈣、美味加分。捲動翻頁的互動繪本。">
+<style>
+  :root { --ink:#5b3a40; --paper:#fffaf0; --k:1; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  /* 跟樂天原版一樣：白色頁面，中間一條 700px 寬的直式畫面，沒有卡片、陰影或模糊背景 */
+  body {
+    background:#fff; color:var(--ink);
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- 每一幕：外框提供捲動距離，pin 釘住畫面 ---------- */
+  .act { position:relative; }               /* 高度由 data-len 決定 */
+  .pin { position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; perspective:1800px; }
+  .stage {
+    position:absolute; left:50%; top:50%;
+    width:700px; height:1000px;
+    transform:translate(-50%,-50%) scale(var(--k)) rotateX(calc(var(--my, 0) * -2.2deg)) rotateY(calc(var(--mx, 0) * 2.6deg));   /* 跟著游標微微傾斜 */
+    overflow:hidden; border-radius:0;
+    background:#fff;
+  }
+  /* 游標視差：--mx/--my 是游標位置（-1~1），--d 是這一層的深度（最多移動幾 px；負值＝往反方向，看起來比較遠） */
+  [data-d] { translate:calc(var(--mx, 0) * var(--d) * 1px) calc(var(--my, 0) * var(--d) * 1px); }
+  .G { position:absolute; inset:0; background:#fff; }   /* 一幕裡的一個鏡頭；data-a~data-b 是它出現的進度範圍 */
+  .zz { font-weight:900; font-style:italic; color:#fff; -webkit-text-stroke:6px #4c3643; paint-order:stroke fill; line-height:1; transform-origin:50% 50% !important; opacity:0; }
+  .leaf { width:30px; height:19px; background:#8fc31f; border:3px solid #4d8f1f; border-radius:0 85% 0 85%; transform-origin:50% 50% !important; opacity:0; }
+  .L { position:absolute; left:0; top:0; display:block; transform-origin:0 0; will-change:transform,opacity; user-select:none; -webkit-user-drag:none; }
+  .W { position:absolute; left:0; width:700px; transform-origin:0 0; will-change:transform; }
+  .W > img:not(.L) { position:absolute; left:0; top:0; width:700px; display:block; }
+  .pop { transform-origin:50% 100%; }
+
+  /* ---------- 字幕 ---------- */
+  .cap {
+    position:absolute; left:50%; width:max-content; max-width:620px;
+    transform:translate(-50%,0); opacity:0;
+    margin:0; padding:16px 28px; border-radius:22px;
+    background:rgba(255,250,240,.94); color:var(--ink);
+    font-size:30px; line-height:1.5; font-weight:700; letter-spacing:.04em; text-align:center;
+    box-shadow:0 6px 22px rgba(60,40,30,.14);
+    pointer-events:none; z-index:50;
+  }
+  .hint {
+    position:absolute; left:50%; bottom:40px; transform:translateX(-50%);
+    font-size:24px; font-weight:700; color:#fff; letter-spacing:.08em;
+    background:rgba(40,80,110,.55); padding:10px 26px; border-radius:999px; z-index:60;
+    animation:bob 1.6s ease-in-out infinite;
+  }
+  @keyframes bob { 50% { transform:translate(-50%,8px); } }
+
+  /* ---------- 鈣量表 ---------- */
+  .meter { position:absolute; left:110px; top:880px; width:480px; z-index:40; opacity:0; }
+  .meter .lab { display:flex; justify-content:space-between; font-size:26px; font-weight:800; margin-bottom:8px; }
+  .meter .bar { height:22px; border-radius:999px; background:#efe3c4; border:3px solid var(--ink); overflow:hidden; }
+  .meter .fill { height:100%; width:0; background:linear-gradient(90deg,#9fd3f5,#1d6fbf); }
+
+  /* ---------- 第 3 幕：運動三格 ---------- */
+  .panel { position:absolute; left:194px; width:312px; height:312px; border-radius:18px; overflow:hidden; }
+  .panel img { position:absolute; left:0; top:0; width:312px; }
+
+  /* ---------- 頁首與章節導覽 ---------- */
+  .top {
+    position:fixed; left:0; right:0; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 22px; pointer-events:none;
+  }
+  .brand { font-weight:800; letter-spacing:.08em; font-size:15px; background:rgba(255,250,240,.9); padding:8px 16px; border-radius:999px; pointer-events:auto; box-shadow:0 4px 14px rgba(60,40,30,.1); }
+  .snd { font:inherit; font-weight:800; font-size:15px; letter-spacing:.04em; color:inherit; background:rgba(255,250,240,.9); padding:8px 16px; border:0; border-radius:999px; pointer-events:auto; cursor:pointer; box-shadow:0 4px 14px rgba(60,40,30,.1); white-space:nowrap; }
+  .snd[aria-pressed="true"] { background:#ffe14d; }
+  .snd:focus-visible { outline:3px solid #2a6fb8; outline-offset:2px; }
+  .progress { position:fixed; left:0; top:0; height:4px; width:100%; z-index:101; background:transparent; }
+  .progress i { display:block; height:100%; width:0; background:#e9573f; }
+  .chapters {
+    position:fixed; right:22px; top:50%; transform:translateY(-50%); z-index:100;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .chapters button {
+    appearance:none; border:0; cursor:pointer; font:inherit; font-size:14px; font-weight:700;
+    display:flex; align-items:center; gap:10px; justify-content:flex-end;
+    background:rgba(255,250,240,.85); color:var(--ink); padding:7px 14px 7px 16px; border-radius:999px;
+    box-shadow:0 3px 10px rgba(60,40,30,.1); transition:background .25s, color .25s;
+  }
+  .chapters button b { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%; background:#f1e6cc; font-size:12px; }
+  .chapters button.on { background:var(--ink); color:#fff; }
+  .chapters button.on b { background:#e9573f; color:#fff; }
+  .chapters button:focus-visible { outline:3px solid #e9573f; outline-offset:2px; }
+
+  .end-btn {
+    position:absolute; left:50%; top:760px; transform:translateX(-50%);
+    appearance:none; border:3px solid var(--ink); background:#fff; color:var(--ink); cursor:pointer;
+    font:inherit; font-size:26px; font-weight:800; padding:14px 34px; border-radius:999px;
+  }
+
+  .chapters button { white-space:nowrap; }
+  @media (max-width: 820px) {
+    .top { padding:10px 12px; }
+    .brand { font-size:13px; padding:6px 12px; }
+    .chapters { top:auto; bottom:14px; right:50%; transform:translateX(50%); flex-direction:row; gap:6px; }
+    .chapters button { padding:6px; font-size:0; gap:0; }
+    .chapters button b { width:26px; height:26px; font-size:13px; }
+    .chapters button.on { padding:6px 12px 6px 6px; font-size:13px; gap:6px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .hint { animation:none; } }
+</style>
+</head>
+<body>
+
+<div class="progress"><i id="bar"></i></div>
+<header class="top"><div class="brand">樂天小熊・加鈣繪本</div><button class="snd" id="snd" type="button" aria-pressed="true">🔊 聲音：開</button></header>
+<audio id="bgm" src="audio/bgm.mp3" loop preload="none"></audio>
+<nav class="chapters" id="chapters" aria-label="章節"></nav>
+
+<main>
+<!-- ======================= 第 1 幕：散步（book01–03） ======================= -->
+<section class="act" id="act1" data-len="9" data-name="散步" data-bg="#cfe9f8">
+  <div class="pin"><div class="stage" style="background:#43a0d8">
+    <div class="G" data-a="0" data-b=".66" style="background:#43a0d8">
+      <img class="L" id="a1sky"    src="img/book09_1.jpg" width="700" alt="">
+      <img class="L" id="a1cloud"  src="img/book01_4.png" width="700" alt="">
+      <div class="L" id="a1haze" style="width:700px;height:1600px;background:#cfe9f8"></div>
+      <img class="L" id="a1forest" src="img/book02_1.jpg" width="700" alt="">
+      <img class="L" id="a1mtn"    src="img/book01_3.png" width="700" alt="">
+      <img class="L" id="a1bush"   src="img/book01_2.png" width="700" alt="">
+      <img class="L" id="a1trees"  src="img/book02_3.png" width="700" alt="">
+      <img class="L" id="a1bear"   src="img/book02_4.png" width="700" alt="小熊在森林小路上">
+      <img class="L" id="a1light"  src="img/book02_2.png" width="700" alt="" style="opacity:.85;-webkit-mask-image:linear-gradient(#000 0, #000 110px, transparent 300px);mask-image:linear-gradient(#000 0, #000 110px, transparent 300px)">
+      <img class="L" id="a1bird"   src="img/book02_5.png" width="107" alt="小鳥" style="transform-origin:50% 50%">
+    </div>
+    <div class="G" data-a=".66" data-b="1" style="background:#3f5c58">
+      <img class="L" id="a1hold" src="img/book03_1.jpg" width="700" alt="小熊捧著小鳥">
+      <img class="L" id="a1tree" src="img/book03_3.png" width="700" alt="高高的樹上有鳥巢">
+      <img class="L" id="a1leaf" src="img/book03_2.png" width="700" alt="" style="transform-origin:50% 0">
+    </div>
+    <p class="cap" data-in="-1" data-out=".14" style="top:330px">這天，小熊在路上散步時……</p>
+    <p class="cap" data-in=".5" data-out=".66" style="top:860px">發現了從鳥巢被風吹下來的小小鳥</p>
+    <div class="hint" id="hint">↓ 往下捲動，故事會跟著你播放</div>
+  </div></div>
+</section>
+
+<!-- ======================= 第 2 幕：送小鳥回家（book04–08） ======================= -->
+<section class="act" id="act2" data-len="9" data-name="送小鳥回家" data-bg="#e3efe0">
+  <div class="pin"><div class="stage">
+    <!-- 爬樹、滑下來 -->
+    <div class="G" data-a="0" data-b=".3" style="background:#2f8f7f">
+      <img class="L" src="img/book04_1.jpg" width="700" alt="" style="top:4px">
+      <img class="L" src="img/book04_2.png" width="700" alt="" style="top:4px">
+      <div class="W" id="b2bear" style="width:282px;height:380px">
+        <img src="img/book04_4.png" alt="小熊抱著樹，小鳥在頭上" style="width:282px">
+        <img src="img/book04_42.png" alt="" style="width:282px">
+        <img src="img/book04_43.png" alt="" style="width:282px">
+      </div>
+      <p class="cap" data-in=".12" data-out=".3" style="top:860px">爬呀爬……咻！又滑了下來</p>
+    </div>
+    <!-- 到處找人幫忙 -->
+    <div class="G" data-a=".3" data-b=".54">
+      <img class="L" id="b2steps" src="img/book05_1.jpg" width="302" alt="腳印" style="left:237px;top:250px">
+      <img class="L pop" id="b2run1" src="img/book05_2.gif" width="420" alt="小熊抱著小鳥跑來跑去" style="left:265px;top:10px">
+      <img class="L pop" id="b2run2" src="img/book05_3.gif" width="330" alt="小熊急得流汗" style="left:10px;top:300px">
+      <img class="L" id="b2ladder" src="img/book05_4.png" width="553" alt="小熊扛著梯子" style="left:137px;top:600px">
+      <p class="cap" data-in=".46" data-out=".54" style="top:470px">樂隊君到處找人幫忙，<br>最後終於借到梯子</p>
+    </div>
+    <!-- 雙手把小鳥放回鳥巢 -->
+    <div class="G" data-a=".54" data-b=".78" style="background:#fff">
+      <div class="W" style="top:318px;height:364px;overflow:hidden;border-radius:4px">
+        <img src="img/book06_1.jpg" alt="小熊抬頭看著鳥巢">
+        <img class="L" id="b2bird"  src="img/book06_5.png" width="134" alt="小鳥" style="left:270px;top:190px">
+        <img class="L" id="b2handL" src="img/book06_3.png" width="113" alt="" style="left:0;top:148px">
+        <img class="L" id="b2handR" src="img/book06_4.png" width="123" alt="" style="left:0;top:138px">
+        <img class="L" src="img/book06_2.png" width="636" alt="鳥巢" style="left:30px;top:275px">
+      </div>
+      <p class="cap" data-in=".57" data-out=".78" style="top:150px">輕輕的，把小鳥放回鳥巢</p>
+    </div>
+    <!-- 如果能長高一些 -->
+    <div class="G" data-a=".78" data-b="1">
+      <img class="L" src="img/book08_1.jpg" width="288" alt="" style="left:206px;top:230px">
+      <img class="L" id="b2head" src="img/book08_1-1.png" width="288" alt="小熊在想事情" style="left:206px;top:418px;transform-origin:50% 90%">
+      <img class="L" id="b2say"  src="img/book08_2.png" width="304" alt="如果能長高一些，就能幫助更多人了！" style="left:131px;top:230px;transform-origin:30% 100%">
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= 第 3 幕：想長高（book09–17） ======================= -->
+<section class="act" id="act3" data-len="11" data-name="想長高" data-bg="#e6f1fb">
+  <div class="pin"><div class="stage">
+    <!-- 走回家 -->
+    <div class="G" data-a="0" data-b=".18" style="background:#80c3eb">
+      <img class="L" src="img/book09_1.jpg" width="700" alt="" style="top:-301px">
+      <img class="L" id="c3cloud" src="img/book09_2.png" width="700" alt="">
+      <img class="L" id="c3house" src="img/book09_3.png" width="700" alt="小熊的家">
+      <img class="L" src="img/book09_4.png" width="700" alt="" style="top:403px">
+      <img class="L" id="c3walk" src="img/book09_5.png" width="334" alt="小熊走回家" style="transform-origin:50% 100%">
+    </div>
+    <!-- 啪！啪！吵醒華爾滋 -->
+    <div class="G" data-a=".18" data-b=".33">
+      <div style="position:absolute;left:0;top:143px;width:700px;height:714px;overflow:hidden">
+        <img class="L" id="c3nap" src="img/book10_1.jpg" width="700" height="714" alt="華爾滋在吊床上睡午覺" style="transform-origin:50% 0">
+        <span class="L zz" style="left:400px;top:385px;font-size:44px">Z</span>
+        <span class="L zz" style="left:440px;top:330px;font-size:58px">Z</span>
+        <span class="L zz" style="left:490px;top:265px;font-size:74px">Z</span>
+        <i class="L leaf" style="left:120px"></i><i class="L leaf" style="left:215px"></i><i class="L leaf" style="left:470px"></i>
+        <i class="L leaf" style="left:560px"></i><i class="L leaf" style="left:640px"></i><i class="L leaf" style="left:60px"></i>
+      </div>
+      <img class="L pa" src="img/book10_2.png" width="180" alt="啪！" style="left:10px;top:333px;transform-origin:50% 50%">
+      <img class="L pa" src="img/book10_2.png" width="140" alt="" style="left:265px;top:271px;transform-origin:50% 50%">
+      <img class="L pa" src="img/book10_2.png" width="140" alt="" style="left:530px;top:333px;transform-origin:50% 50%">
+      <img class="L pa" src="img/book10_2.png" width="153" alt="" style="left:20px;top:613px;rotate:15deg;transform-origin:50% 50%">
+      <img class="L pa" src="img/book10_2.png" width="153" alt="" style="left:520px;top:603px;rotate:15deg;transform-origin:50% 50%">
+    </div>
+    <!-- 華爾滋坐起來 -->
+    <div class="G" data-a=".33" data-b=".46">
+      <div style="position:absolute;left:100px;top:285px;width:500px;height:431px;overflow:hidden">
+        <img class="L" id="c3sit" src="img/book11_2.png" width="288" alt="華爾滋坐起來" style="left:130px;top:126px;transform-origin:50% 90%">
+      </div>
+      <img class="L" src="img/book11_1.png" width="500" alt="" style="left:100px;top:285px">
+      <img class="L" id="c3wow" src="img/book11_3.png" width="193" alt="！" style="left:90px;top:275px;transform-origin:50% 100%">
+    </div>
+    <!-- 外面在跳繩 -->
+    <div class="G" data-a=".46" data-b=".62" style="background:#80c3eb">
+      <img class="L" src="img/book12_1.jpg" width="700" alt="" style="top:-100px">
+      <img class="L" id="c3cloud2" src="img/book12_2.png" width="700" alt="">
+      <img class="L" id="c3hill" src="img/book12_3.png" width="700" alt="">
+      <img class="L" id="c3grass" src="img/book12_4.png" width="700" alt="">
+      <div class="W" id="c3rope" style="left:188px;width:323px;height:412px">
+        <img src="img/book12_5.png" alt="樂隊君在跳繩" style="width:323px">
+        <img src="img/book12_6.png" alt="" style="width:323px">
+      </div>
+    </div>
+    <!-- 聽說跳 50 下會長高 -->
+    <div class="G" data-a=".62" data-b=".76">
+      <div class="W" style="top:150px;height:700px">
+        <img src="img/book13_1.jpg" alt="樂隊君跳繩，華爾滋生氣">
+        <img id="c3talk" src="img/book13_2.jpg" alt="聽說跳 50 下會長高">
+        <!-- 只讓左邊跳繩的小熊跳：原位置蓋白，影子改用 CSS 畫，小熊從原圖剪下來 -->
+        <div style="position:absolute;left:40px;top:262px;width:300px;height:392px;background:#fff"></div>
+        <div id="c3shadow" style="position:absolute;left:90px;top:604px;width:196px;height:44px;border-radius:50%;background:#a49c99"></div>
+        <img id="c3jump" src="img/jump_rope_bear.png" alt="" style="position:absolute;left:40px;top:262px;width:300px;height:368px;transform-origin:50% 100%">
+        <!-- 對話框貼在最上面，跳起來時繩子從對話框後面經過 -->
+        <div id="c3bubble" style="position:absolute;left:6px;top:99px;width:260px;height:168px;
+          background:url(img/book13_2.jpg) -6px -99px / 700px 700px no-repeat;
+          clip-path:path('M40 0 H218 A40 40 0 0 1 258 40 V103 A40 40 0 0 1 218 143 H137 L137 166 L112 166 L107 143 H40 A40 40 0 0 1 0 103 V40 A40 40 0 0 1 40 0 Z')"></div>
+      </div>
+    </div>
+    <!-- 我們出去玩好不好 -->
+    <div class="G" data-a=".76" data-b=".87">
+      <img class="L" src="img/book16_1.jpg" width="700" alt="樂隊君～我們出去玩好不好？" style="top:257px">
+      <img class="L" id="c3no" src="img/book16_2.jpg" width="700" alt="不行～我還有很多運動要做" style="top:257px">
+    </div>
+    <!-- 拼命運動 -->
+    <div class="G" data-a=".87" data-b="1">
+      <div class="panel" id="c3p1" style="top:20px;background:#90c11d"><img src="img/book17_1.png" alt="舉槓鈴"></div>
+      <div class="panel" id="c3p2" style="top:344px;background:#ff999a"><img id="c3swim" src="img/book17_2.png" alt="游泳" style="transform-origin:50% 90%"></div>
+      <div class="panel" id="c3p3" style="top:668px;background:#66cdcc"><img src="img/book17_3.gif" alt="跑步"></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= 第 4 幕：找方法（book18–28） ======================= -->
+<section class="act" id="act4" data-len="9" data-name="找方法" data-bg="#fdf3df">
+  <div class="pin"><div class="stage">
+    <div class="G" data-a="0" data-b=".12">
+      <img class="L" src="img/book20_1.jpg" width="700" alt="" style="top:200px">
+      <img class="L" id="d4ask" src="img/book20_2.jpg" width="376" alt="要做什麼才能趕快長高？你知道嗎？" style="left:324px;top:230px;transform-origin:30% 100%">
+    </div>
+    <div class="G" data-a=".12" data-b=".24">
+      <img class="L" src="img/book21_1.jpg" width="700" alt="" style="top:200px">
+      <img class="L" id="d4help" src="img/book21_2.jpg" width="533" alt="讓我來幫你吧，我們可以一起來找找長高的好方法！" style="left:20px;top:230px;transform-origin:30% 100%">
+    </div>
+    <div class="G" data-a=".24" data-b=".4">
+      <img class="L" src="img/book22_1.jpg" width="700" alt="在書桌前讀書" style="top:318px">
+      <img class="L" id="d4dusk" src="img/book22_2.jpg" width="700" alt="讀到天黑，書越堆越高" style="top:318px">
+      <p class="cap" data-in=".28" data-out=".4" style="top:760px">他們在圖書館，<br>找了一個下午關於長高的秘密</p>
+    </div>
+    <div class="G" data-a=".4" data-b=".67">
+      <div class="W" id="d4book" style="top:0;height:1540px">
+        <img src="img/book23_1.jpg" alt="小朋友如何補充鈣">
+        <img class="L ic" src="img/book23_2.png" width="144" alt="多運動" style="left:106px;top:538px;transform-origin:50% 50%">
+        <img class="L ic" src="img/book23_3.png" width="219" alt="蔬菜"   style="left:432px;top:468px;transform-origin:50% 50%">
+        <img class="L ic" src="img/book23_4.png" width="188" alt="太陽"   style="left:140px;top:730px;transform-origin:50% 50%">
+        <img class="L ic" src="img/book23_5.png" width="190" alt="牛奶"   style="left:482px;top:686px;transform-origin:50% 50%">
+      </div>
+    </div>
+    <div class="G" data-a=".67" data-b=".79">
+      <img class="L" src="img/book26_1.jpg" width="700" alt="兩隻小熊讀到滿頭大汗" style="top:250px">
+      <img class="L" id="d4other" src="img/book26_2.png" width="536" alt="除了建議的食物外，不知道還有沒有其他攝取鈣的方法呢？" style="left:82px;top:200px;transform-origin:30% 100%">
+    </div>
+    <div class="G" data-a=".79" data-b=".89">
+      <img class="L" src="img/book27_1.jpg" width="700" alt="華爾滋想到了" style="top:200px">
+      <img class="L" id="d4bub" src="img/book27_2.png" width="201" alt="" style="left:65px;top:225px;transform-origin:80% 100%">
+      <img class="L" id="d4bulb" src="img/book27_3.png" width="107" alt="燈泡" style="left:110px;top:252px">
+    </div>
+    <div class="G" data-a=".89" data-b="1">
+      <img class="L" src="img/book28_1.jpg" width="700" alt="我們試著把鈣加進小熊餅乾裡如何？" style="top:150px">
+      <img class="L" id="d4arrow" src="img/book28_2.jpg" width="700" alt="" style="top:150px">
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= 第 5 幕：調配（book29–32，主秀） ======================= -->
+<section class="act" id="act5" data-len="9" data-name="調配" data-bg="#fbeec9">
+  <div class="pin"><div class="stage">
+    <!-- A 回家 -->
+    <div class="G" id="a4A" style="background:linear-gradient(#fff 0 300px,#54a3d5 300px)">
+      <div class="W" id="a4house" style="top:509px;height:491px;transform-origin:455px 440px">
+        <img src="img/book29_1.jpg" alt="小熊的家">
+        <img src="img/book29_2.jpg" alt="">
+        <img src="img/book29_3.jpg" alt="">
+      </div>
+      <p class="cap" data-in="-1" data-out=".13" style="top:120px">於是樂隊君跟華爾滋回家，<br>興奮的準備起來</p>
+    </div>
+    <!-- B 攪拌 -->
+    <div class="G" id="a4B" style="background:#fff">
+      <div class="W" id="a4stir" style="top:250px;height:560px;transform-origin:350px 400px">
+        <img src="img/book30_1.jpg" alt="華爾滋攪拌巧克力">
+        <img src="img/book30_2.jpg" alt="">
+      </div>
+      <p class="cap" data-in=".2" data-out=".39" style="top:120px">華爾滋負責調配<br>完美比例的巧克力餡料</p>
+    </div>
+    <!-- C 倒鈣 -->
+    <div class="G" id="a4C" style="background:#fff">
+      <div class="W" id="a4knead" style="top:250px;height:559px">
+        <img src="img/book31_1.jpg" alt="樂隊君揉麵糰">
+        <img src="img/book31_2.jpg" alt="">
+        <!-- 麵糰變白的光暈 -->
+        <div id="a4glow" style="position:absolute;left:190px;top:350px;width:290px;height:130px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(220,238,255,.6) 60%,transparent);opacity:0"></div>
+        <!-- 蓋住原圖裡的瓶子 -->
+        <div style="position:absolute;left:524px;top:327px;width:81px;height:171px;background:linear-gradient(#fbfae5 0 76px,#4f3c42 76px 81px,#daab67 81px)"></div>
+        <div id="a4drops"></div>
+        <!-- 從原圖剪下來的鈣瓶 -->
+        <div id="a4bottle" style="position:absolute;left:524px;top:327px;width:81px;height:171px;
+          background:url(img/book31_1.jpg) -524px -327px / 700px 559px no-repeat;transform-origin:40.5px 85.5px;
+          clip-path:polygon(25px 2px,54px 2px,61px 6px,66px 11px,68px 19px,68px 23px,66px 27px,63px 31px,62px 35px,65px 39px,68px 43px,71px 47px,74px 51px,76px 55px,78px 61px,80px 73px,79px 143px,75px 151px,72px 155px,68px 159px,62px 163px,48px 169px,25px 169px,12px 163px,6px 159px,4px 155px,1px 147px,1px 135px,2px 73px,4px 61px,6px 55px,8px 51px,10px 47px,13px 43px,16px 39px,20px 35px,22px 31px,19px 27px,16px 23px,15px 19px,16px 15px,19px 7px)"></div>
+        <!-- 影片版：放了 video/act4.mp4 就會蓋在最上層，跟著捲軸播放 -->
+        <video id="a4vid" muted playsinline preload="auto" style="position:absolute;left:0;top:0;width:700px;height:559px;object-fit:cover;display:none;background:#fff"></video>
+      </div>
+      <p class="cap" data-in=".41" data-out=".71" style="top:100px">樂隊君把鈣融進麵糰裡，<br>做成小熊餅乾的外皮</p>
+      <div class="meter" id="a4meter"><div class="lab"><span>麵糰的鈣</span><span id="a4pct">0%</span></div><div class="bar"><div class="fill" id="a4fill"></div></div></div>
+    </div>
+    <!-- D 出爐 -->
+    <div class="G" id="a4D" style="background:#e9b569">
+      <div class="W" style="top:0;height:760px">
+        <img src="img/book32_1.jpg" alt="小熊擠出餅乾">
+        <img id="a4color" src="img/book32_2.jpg" alt="">
+        <video id="a5vid" muted playsinline preload="auto" style="position:absolute;left:0;top:0;width:700px;height:760px;object-fit:cover;display:none;background:#fff"></video>
+      </div>
+      <p class="cap" data-in=".88" data-out="2" style="top:885px;font-size:26px">成功的把小熊餅乾變成美味又營養的小點心！</p>
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= 第 6 幕：分享（book33–35） ======================= -->
+<section class="act" id="act6" data-len="7" data-name="分享" data-bg="#e3f1c9">
+  <div class="pin"><div class="stage">
+    <div class="G" data-a="0" data-b=".19" style="background:linear-gradient(#fff 0 60%,#e1af66 60%)">
+      <div class="W" id="e6done" style="top:250px;height:505px;transform-origin:350px 300px">
+        <img src="img/book33_1.jpg" alt="耶！做好了！">
+        <img src="img/book33_2.jpg" alt="">
+      </div>
+    </div>
+    <div class="G" data-a=".19" data-b=".49" style="background:linear-gradient(#b9cc18 0 50%,#ede787 50%)">
+      <div class="L" id="e6walk" style="width:700px;height:479px">
+        <!-- 原圖上緣的草叢被切掉一半、接不起來：改用把那叢草擦掉的乾淨版 -->
+        <img src="img/book34_1_1_clean.png" width="700" height="479" alt="樂隊君揮著加鈣旗子，華爾滋捧著餅乾" style="display:block">
+      </div>
+      <img class="L" id="e6deco" src="img/share_deco.png" width="700" height="1000" alt="" style="opacity:0;pointer-events:none">
+      <div id="e6fx" style="position:absolute;inset:0;pointer-events:none"></div>
+      <!-- 影片版（選用）：video/act6_share.mp4，直式 700×1000，蓋住整個畫面 -->
+      <video id="e6vid" muted playsinline preload="auto" style="position:absolute;left:0;top:0;width:700px;height:1000px;object-fit:cover;display:none;background:#b9cc18"></video>
+      <img class="L" id="e6say1" src="img/book34_1_2.png" width="308" alt="我們拿給大家吃！" style="left:360px;top:150px;transform-origin:30% 100%">
+    </div>
+    <div class="G" data-a=".49" data-b=".85">
+      <div class="W" id="e6flag" style="top:330px;height:485px;transform-origin:350px 240px">
+        <img src="img/book35_1.jpg" alt="揮旗子分享餅乾">
+        <img src="img/book35_2.jpg" alt="">
+      </div>
+      <img class="L" id="e6say2" src="img/book35_2.png" width="443" alt="快來吃新配方的小熊餅乾唷！" style="left:230px;top:320px;transform-origin:70% 100%">
+      <p class="cap" data-in=".53" data-out=".85" style="top:90px">樂隊君跟華爾滋開心的帶著餅乾，<br>去跟鎮上的每個好朋友分享。</p>
+    </div>
+    <div class="G" data-a=".85" data-b="1">
+      <img class="L" id="e6end" src="img/bookEND.png" width="631" alt="THE END" style="left:35px;top:300px;transform-origin:50% 50%">
+      <p class="cap" style="top:620px;opacity:1;box-shadow:none;background:none">樂天小熊新配方<br>營養加鈣・美味加分</p>
+      <button class="end-btn" id="again" type="button">↑ 再看一次</button>
+    </div>
+  </div></div>
+</section>
+</main>
+
+<script>
+(() => {
+  /* ---------- 小工具 ---------- */
+  const $ = id => document.getElementById(id);
+  const clamp = x => Math.min(1, Math.max(0, x));
+  const seg = (p, a, b) => clamp((p - a) / (b - a));          // 把 p 在 a~b 之間換算成 0~1
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const E = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;   // 緩入緩出
+  const out = t => 1 - Math.pow(1 - t, 3);
+  const back = t => t <= 0 ? 0 : t >= 1 ? 1 : 1 + 2.70158*Math.pow(t-1,3) + 1.70158*Math.pow(t-1,2); // 彈出
+  const bounce = t => { const n=7.5625,d=2.75; if(t<1/d) return n*t*t; if(t<2/d) return n*(t-=1.5/d)*t+.75; if(t<2.5/d) return n*(t-=2.25/d)*t+.9375; return n*(t-=2.625/d)*t+.984375; };
+  const T = (el, x=0, y=0, s=1, r=0) => { if (!el) return; el.style.transform = `translate3d(${x}px,${y}px,0) scale(${s}) rotate(${r}deg)`; };
+  const O = (el, o) => { if (!el) return; el.style.opacity = o; el.style.visibility = o <= 0.001 ? 'hidden' : 'visible'; };
+  const frame = (wrap, i) => wrap && [...wrap.children].forEach((im, k) => { if (im.tagName === 'IMG') im.style.visibility = k === i ? 'visible' : 'hidden'; });
+  const pop = (el, t) => { T(el, 0, 0, back(t)); O(el, t > 0 ? 1 : 0); };                 // 對話框彈出
+  const reveal = (el, t) => { if (el) el.style.clipPath = `inset(0 0 ${(100 - 100 * t).toFixed(1)}% 0)`; };   // 由上往下畫出來（腳印）
+
+  /* ---------- 每一幕的動畫：p = 這一幕的捲動進度 0~1 ---------- */
+  const makeScenes = ($, root, dropEls, vid) => ({
+    act1(p) {
+      const q = seg(p, 0, .66);                                                               // 鏡頭從天空降到森林
+      T($('a1sky'), 0, -300 * q);
+      const cy = 420 - 1000 * E(seg(q, 0, .55));
+      T($('a1cloud'), 0, cy);                                                                  // 遠：慢
+      T($('a1haze'), 0, cy + 742);
+      T($('a1mtn'),   0, 1300 - 900 * E(seg(q, .06, .4)) - 1100 * E(seg(q, .4, .72)));     // 中
+      T($('a1bush'),  0, 1400 - 850 * E(seg(q, .12, .42)) - 1300 * E(seg(q, .42, .72)));   // 近：快
+      // 森林這一景（森林底圖＋樹冠＋光＋小熊）照原版的相對位置鎖在一起，整組接在樹叢下面升上來：
+      // 樹冠蓋住森林底圖上半的天空，樹叢蓋住樹冠頂端的缺口，中途不會露出平平的接縫
+      const bushY = 1400 - 850 * E(seg(q, .12, .42)) - 1300 * E(seg(q, .42, .72));
+      const ty = Math.max(-300, bushY + 308);
+      T($('a1forest'),0, ty + 180);
+      T($('a1trees'), 0, ty);
+      T($('a1light'), 0, ty + 300);                                                            // 樹梢灑下來的光
+      O($('a1light'), .85 * (1 - clamp((ty + 300) / 220)));                                    // 光的上緣是平的，快到定位才淡入，免得中途露出一條線
+      T($('a1bear'),  0, ty + 482);
+      // 小鳥從樹梢左右飄著掉下來，跟原版一樣落在小熊前面地上那塊光圈裡
+      const t = seg(q, .72, .97);
+      T($('a1bird'),
+        lerp(500, 270, t * t) + 70 * Math.sin(t * 3 * Math.PI) * (1 - t),               // 先在小熊右邊飄，最後落到地上
+        lerp(-180, 662, t * t * (3 - 2 * t)),
+        1, 32 * Math.sin(t * 4 * Math.PI) * (1 - t));
+      O($('a1bird'), t > 0 ? 1 : 0);
+      O($('hint'), 1 - seg(p, 0, .04));
+      // 小熊捧著小鳥，抬頭看高高的鳥巢
+      const b = E(seg(p, .66, 1));
+      // 滾動視差：鏡頭往下移時，三層用不同速度往上跑——背景最慢（遠）、樹幹和鳥巢較快、最前面的樹葉最快（近）
+      // 三層都放大一點、四邊留出餘量，游標視差移動時才不會露出邊緣（背景 5%、樹幹 6%、樹葉 8%）
+      T($('a1hold'), -17.5, -20 - 320 * b, 1.05);            // 遠：只移動 320
+      T($('a1tree'), -21, 330 - 610 * b, 1.06);              // 中：移動 610；停住時底邊仍超出畫面底，不會露出被切平的樹根
+      T($('a1leaf'), 0, -30 - 860 * b, 1.08 + .25 * b);      // 近：移動 860，還邊移邊放大
+    },
+    act2(p) {
+      // 爬上去 → 抱住 → 滑下來，三格眼淚交替
+      const c = seg(p, 0, .3);
+      const y = c < .35 ? lerp(640, 230, E(c / .35)) : c < .5 ? 230 : lerp(230, 600, E((c - .5) / .5));
+      T($('b2bear'), 125 + (c > .5 ? 6 * Math.sin(p * 120) : 0), y);
+      frame($('b2bear'), Math.floor(p * 60) % 3);
+      // 腳印一路畫出來，三個小熊依序出現
+      const d = seg(p, .3, .54);
+      reveal($('b2steps'), seg(d, 0, .6));
+      pop($('b2run1'), seg(d, .08, .2));
+      pop($('b2run2'), seg(d, .28, .4));
+      T($('b2ladder'), lerp(700, 0, out(seg(d, .48, .64))), 0); O($('b2ladder'), d > .48 ? 1 : 0);
+      // 雙手托著小鳥往上，放進鳥巢後雙手張開
+      const h = seg(p, .54, .78);
+      const lift = 230 * (1 - E(seg(h, 0, .45)));
+      const open = E(seg(h, .5, .85));
+      T($('b2bird'), 0, lift);
+      T($('b2handL'), lerp(210, 100, open), lift);
+      T($('b2handR'), lerp(370, 480, open), lift);
+      // 搖頭晃腦，冒出想法
+      T($('b2head'), 0, 0, 1, 7 * Math.sin(p * 90));
+      pop($('b2say'), seg(p, .83, .89));
+    },
+    act3(p) {
+      // 背影沿著小路走回家：越遠越小，每一步左右搖擺、輕輕上下，最後走進門裡
+      const w = seg(p, 0, .18);
+      const houseY = lerp(199, 109, w);
+      T($('c3cloud'), 0, lerp(-21, -91, w));
+      T($('c3house'), 0, houseY);
+      const wt = seg(w, 0, .92);                                  // 走路的進度
+      const doorY = houseY + 360;                                  // 家門口的地面位置
+      const feetY = doorY + (1060 - doorY) * Math.pow(1 - wt, 1.4);   // 腳從畫面下方一路走到門口
+      const s = Math.max(.22, 1.15 * (feetY - 298) / 762);         // 透視：離地平線越近越小
+      // 小路的中線（量自 book09_4：每個高度小路在哪個 x），小熊的腳永遠踩在路中間
+      const road = [[1060,225],[973,213],[943,196],[913,181],[883,169],[853,158],[823,149],[793,143],[763,141],[733,148],[703,157],[673,169],[643,186],[613,206],[583,231],[553,290],[523,335],[466,405]];
+      let cx = road[road.length - 1][1];
+      for (let i = 0; i < road.length - 1; i++) {
+        if (feetY >= road[i + 1][0]) { const [y0, x0] = road[i], [y1, x1] = road[i + 1]; cx = lerp(x1, x0, clamp((feetY - y1) / (y0 - y1))); break; }
+      }
+      if (feetY >= road[0][0]) cx = road[0][1];
+      const step = wt * 8 * Math.PI;                               // 一共走 8 步
+      const bob = Math.abs(Math.sin(step)) * 12 * s;
+      T($('c3walk'), cx + 9 * s * Math.sin(step) - 167, feetY - 431 - bob, s, 4 * Math.sin(step));
+      O($('c3walk'), 1 - seg(w, .92, 1));                          // 走到門口就進屋
+      // 吊床午睡：先安靜地冒 Zzz、吊床輕輕搖 → 啪！一個一個彈出來，每一聲畫面都震一下、樹葉被震落
+      const nap = seg(p, .18, .33);
+      const paT = i => seg(nap, .3 + i * .1, .36 + i * .1);          // 第 i 聲「啪」
+      let jolt = 0;
+      for (let i = 0; i < 5; i++) { const t = paT(i); if (t > 0 && t < 1) jolt = Math.sin(t * Math.PI * 3) * (1 - t); }
+      const calm = 1 - seg(nap, .28, .32);                           // 還沒被吵的程度
+      T($('c3nap'), 10 * jolt, -12 - 8 * Math.abs(jolt), lerp(1.06, 1.1, E(nap)), 1.1 * Math.sin(nap * 9) * calm + 1.5 * jolt);
+      root.querySelectorAll('.zz').forEach((el, i) => {
+        const t = (nap * 5 + i * .33) % 1;
+        T(el, 26 * t, -46 * t, .7 + .5 * t, -8 + 16 * t);
+        O(el, Math.sin(t * Math.PI) * calm * seg(nap, 0, .05));
+      });
+      root.querySelectorAll('.pa').forEach((el, i) => {
+        const t = paT(i), after = seg(nap, .36 + i * .1, 1);
+        T(el, 0, 0, back(t) * (1 + .07 * Math.sin(after * 26 + i)), (i % 2 ? 7 : -7) * (1 - t) + 3 * Math.sin(after * 20 + i * 2));
+        O(el, t > 0 ? 1 : 0);
+      });
+      root.querySelectorAll('.leaf').forEach((el, i) => {
+        const t = seg(nap, .32 + (i % 5) * .1 + (i > 4 ? .05 : 0), .62 + (i % 5) * .1 + (i > 4 ? .05 : 0));
+        T(el, 34 * Math.sin(t * 9 + i), lerp(150, 660, t), 1, 200 * t * (i % 2 ? 1 : -1));
+        O(el, t > 0 && t < 1 ? Math.min(1, (1 - t) * 5) : 0);
+      });
+      // 華爾滋從躺著轉成坐起來，冒出驚嘆號
+      const st = seg(p, .33, .46);
+      T($('c3sit'), 0, 0, 1, lerp(-90, 0, E(seg(st, .15, .6))));
+      pop($('c3wow'), seg(st, .62, .78));
+      // 跳繩：兩格交替＋小跳
+      const r = seg(p, .46, .62);
+      T($('c3cloud2'), 0, lerp(-30, -60, r));
+      T($('c3hill'), 0, lerp(230, 180, E(r)));
+      T($('c3grass'), 0, lerp(463, 333, E(r)));
+      frame($('c3rope'), Math.floor(p * 70) % 2);
+      T($('c3rope'), 0, lerp(493, 528, E(r)) - 18 * Math.abs(Math.sin(p * 35 * Math.PI)));
+      // 聽說跳 50 下會長高：只有拿跳繩的小熊在跳
+      const k = seg(p, .62, .76);
+      const talk = seg(k, .4, .55);
+      O($('c3talk'), talk); O($('c3bubble'), talk);
+      const ph = k > 0 && k < 1 ? (k * 6) % 1 : 0;
+      const hgt = Math.sin(ph * Math.PI);
+      const land = ph <= 0 ? 0 : ph < .12 ? 1 - ph / .12 : ph > .88 ? (ph - .88) / .12 : 0;
+      const j = $('c3jump');
+      if (j) j.style.transform = `translate3d(0,${(-46 * hgt).toFixed(1)}px,0) scale(${(1 + .05 * land).toFixed(3)},${(1 - .06 * land).toFixed(3)})`;
+      const sh = $('c3shadow');
+      if (sh) { sh.style.transform = `scale(${(1 - .3 * hgt).toFixed(3)})`; sh.style.opacity = (1 - .45 * hgt).toFixed(3); }
+      // 出去玩？不行～
+      O($('c3no'), seg(p, .81, .83));
+      // 三格運動一格格出現
+      [1, 2, 3].forEach(i => {
+        const t = seg(p, .87 + (i - 1) * .03, .9 + (i - 1) * .03);
+        T($('c3p' + i), 0, 60 * (1 - out(t))); O($('c3p' + i), t);
+      });
+      T($('c3swim'), 0, 0, 1, 8 * Math.sin(p * 120));
+    },
+    act4(p) {
+      pop($('d4ask'), seg(p, .03, .08));
+      pop($('d4help'), seg(p, .15, .2));
+      O($('d4dusk'), seg(p, .29, .35));                                                       // 從白天讀到傍晚
+      T($('d4book'), 0, -540 * E(seg(p, .42, .64)));
+      root.querySelectorAll('#d4book .ic').forEach((el, i) => { const k = back(seg(p, .47 + i * .04, .51 + i * .04)); T(el, 0, 0, k); O(el, k > 0 ? 1 : 0); });
+      pop($('d4other'), seg(p, .7, .75));
+      pop($('d4bub'), seg(p, .8, .83));
+      const bl = seg(p, .83, .87);                                                            // 燈泡閃幾下才亮
+      O($('d4bulb'), bl <= 0 ? 0 : bl >= 1 ? 1 : (Math.floor(bl * 7) % 2 ? 0 : 1));
+      O($('d4arrow'), seg(p, .94, .97));
+    },
+    act5(p) {
+      // A：房子冒煙，鏡頭推進門口
+      O($('a4A'), 1 - seg(p, .15, .19));
+      frame($('a4house'), Math.floor(p * 150) % 3);
+      const z = E(seg(p, .06, .18));
+      T($('a4house'), 0, 0, 1 + 2.4 * z);
+      // B：攪拌（兩格依捲動交替）
+      O($('a4B'), seg(p, .16, .2) * (1 - seg(p, .38, .41)));
+      frame($('a4stir'), Math.floor(p * 110) % 2);
+      T($('a4stir'), 0, 0, lerp(1, 1.06, seg(p, .17, .4)));
+      // C：鈣瓶傾倒，捲多少倒多少
+      O($('a4C'), seg(p, .38, .41) * (1 - seg(p, .7, .73)));
+      frame($('a4knead'), seg(p, .45, .66) > 0 && seg(p, .45, .66) < 1 ? 0 : Math.floor(p * 40) % 2);
+      const tilt = E(seg(p, .43, .5)) * (1 - E(seg(p, .64, .69)));
+      T($('a4bottle'), -39 * tilt, -116 * tilt, 1, -115 * tilt);
+      // 影片版：鈣量表對齊影片裡實際倒鈣的秒數；沒有影片時用分層版的時間
+      const pour = vid.ready
+        ? seg(p, .43 + .25 * VID.pourFrom / VID.end, .43 + .25 * VID.pourTo / VID.end)
+        : seg(p, .5, .65);
+      dropEls.forEach((d, i) => {
+        const st = .5 + i * (.13 / dropEls.length);
+        const t = seg(p, st, st + .03);
+        T(d, lerp(446, 300 + (i % 5) * 22, out(t)), 326 + 74 * t * t, 1);
+        O(d, t > 0 && t < 1 ? 1 : 0);
+      });
+      O($('a4glow'), pour * .8);
+      if (vid.ready) {                                     // 影片版：捲到幾 %，影片就停在幾 %
+        const want = seg(p, .43, .68) * Math.min(VID.end, vid.el.duration - .05);
+        if (!vid.el.seeking && Math.abs(vid.el.currentTime - want) > .03) vid.el.currentTime = want;
+      }
+      O($('a4meter'), seg(p, .44, .48) * (1 - seg(p, .7, .73)));
+      if ($('a4fill')) $('a4fill').style.width = (pour * 100).toFixed(1) + '%';
+      if ($('a4pct')) $('a4pct').textContent = Math.round(pour * 100) + '%';
+      // D：出爐（有影片就播影片，沒有就原圖線稿→上色）
+      O($('a4D'), seg(p, .7, .73));
+      O($('a4color'), seg(p, .78, .84));
+      if (bake.ready) {                                    // 影片版：從空桌子擠出餅乾，最後溶回原圖
+        const want = seg(p, .74, .88) * Math.min(BAKE.end, bake.el.duration - .05);
+        if (!bake.el.seeking && Math.abs(bake.el.currentTime - want) > .03) bake.el.currentTime = want;
+        O(bake.el, 1 - seg(p, .885, .91));
+      }
+    },
+    act6(p) {
+      frame($('e6done'), Math.floor(p * 60) % 2);
+      T($('e6done'), 0, 0, lerp(1.12, 1, E(seg(p, 0, .17))));
+      const w = seg(p, .21, .37);
+      // 圖不再從左邊滑進來（滑到一半右邊會露出對不上的背景），改成原地由近拉遠＋走路的上下晃動
+      const ws = lerp(1.16, 1, E(w));
+      T($('e6walk'), -350 * (ws - 1), 360 - 240 * (ws - 1) - (w > 0 && w < 1 ? Math.abs(Math.sin(p * 120)) * 10 : 0), ws);
+      // 慶祝特效：紙片、花瓣、小熊餅乾從上方灑落；餅乾碗冒出星星（都跟著捲動走）
+      if (share.ready) {                                   // 影片版：捲到幾 %，影片就停在幾 %
+        const want = seg(p, .21, .47) * Math.min(SHARE.end, share.el.duration - .05);
+        if (!share.el.seeking && Math.abs(share.el.currentTime - want) > .03) share.el.currentTime = want;
+      }
+      O($('e6fx'), share.ready ? 0 : 1);                   // 有影片時不疊程式特效
+      const deco = seg(p, .29, .36);                       // 彩旗、氣球、煙火從上方降下來
+      T($('e6deco'), 0, lerp(-460, 0, back(deco)));
+      O($('e6deco'), share.ready || deco <= 0 ? 0 : 1);
+      fxEls.forEach(f => {
+        if (f.star) {
+          const t = seg(p, f.st, f.st + .05);
+          T(f.el, f.x, f.y - 30 * t, Math.sin(t * Math.PI) * f.s, 90 * t);
+          O(f.el, t > 0 && t < 1 ? 1 : 0);
+        } else {
+          const t = seg(p, f.st, f.st + f.dur);
+          T(f.el, f.x + f.sway * Math.sin(t * 7 + f.ph), lerp(-90, 1030, t), f.s, f.rot * t);
+          O(f.el, t > 0 && t < 1 ? 1 : 0);
+        }
+      });
+      pop($('e6say1'), seg(p, .37, .42));
+      frame($('e6flag'), Math.floor(p * 70) % 2);
+      T($('e6flag'), 0, 0, lerp(1.12, 1, E(seg(p, .49, .65))));
+      pop($('e6say2'), seg(p, .6, .65));
+      T($('e6end'), 0, 0, back(seg(p, .86, .94)));
+    }
+  });
+
+  /* ---------- 鏡頭切換：每個 .G 依 data-a~data-b 淡入淡出（相鄰鏡頭交叉溶接） ---------- */
+  const fadeGroups = (groups, p) => groups.forEach(g => {
+    const a = +g.dataset.a, b = +g.dataset.b;
+    O(g, (a <= 0 ? 1 : seg(p, a - .012, a + .012)) * (b >= 1 ? 1 : 1 - seg(p, b - .012, b + .012)));
+  });
+
+  /* ---------- 調配那一幕的影片（選用）：找不到檔案就維持分層版 ---------- */
+  const vid = { el: $('a4vid'), ready: false };
+  const bake = { el: $('a5vid'), ready: false };
+  // 換新影片時改這些秒數：end = 影片用到第幾秒（之後的畫面不用）；pourFrom~pourTo = 影片裡倒鈣的那幾秒
+  const VID = { end: 3.6, pourFrom: 1.6, pourTo: 3.4 };
+  const BAKE = { end: 99 };                                // 出爐影片：預設用到最後
+  const share = { el: $('e6vid'), ready: false };
+  const SHARE = { end: 99 };                               // 分享影片：預設用到最後
+  function loadVideo(v, file) {
+    const use = src => {
+      v.el.addEventListener('loadedmetadata', () => {
+        v.ready = true;
+        v.el.style.display = 'block';
+        v.el.currentTime = 0;
+        last = -1;                                         // 強制重畫一次
+      }, { once: true });
+      v.el.src = src;
+    };
+    // 先整支讀進記憶體（Blob），倒捲時才不會卡；直接雙擊開檔時 fetch 不能用，就改成直接載入
+    fetch(file)
+      .then(r => { if (!r.ok) throw new Error('no video'); return r.blob(); })
+      .then(b => use(URL.createObjectURL(b)))
+      .catch(() => {
+        if (location.protocol === 'file:') {
+          const probe = document.createElement('video');
+          probe.onloadedmetadata = () => use(file);
+          probe.src = file;
+        }
+      });
+  }
+  loadVideo(vid, 'video/act4.mp4');
+  loadVideo(bake, 'video/act5_bake.mp4');
+  loadVideo(share, 'video/act6_share.mp4');
+  addEventListener('touchstart', () => { [vid, bake, share].forEach(v => { if (v.ready) v.el.play().then(() => v.el.pause()).catch(() => {}); }); }, { once: true, passive: true });
+
+  /* ---------- 鈣滴 ---------- */
+  const dropEls = [];
+  for (let i = 0; i < 14; i++) {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:absolute;left:0;top:0;width:20px;height:26px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#fff;border:3px solid #1d6fbf;opacity:0';
+    $('a4drops').appendChild(d); dropEls.push(d);
+  }
+
+  /* ---------- 分享那一幕的慶祝特效：紙片、花瓣、小熊餅乾、星星 ---------- */
+  const fxEls = [];
+  {
+    const rnd = i => { const v = Math.sin(i * 12.9898 + 4.1) * 43758.5453; return v - Math.floor(v); };
+    const colors = ['#f28ab2', '#2a6fb8', '#e0392b', '#fff', '#ffd23f', '#f6a623'];
+    const add = (css, o, tag = 'div') => {
+      const el = document.createElement(tag);
+      el.style.cssText = 'position:absolute;left:0;top:0;opacity:0;will-change:transform,opacity;' + css;
+      $('e6fx').appendChild(el); fxEls.push({ el, ...o }); return el;
+    };
+    for (let i = 0; i < 80; i++) {                         // 紙片與花瓣
+      const c = colors[i % colors.length], petal = i % 4 === 0;
+      const w = petal ? 22 : 12 + rnd(i) * 10, h = petal ? 16 : 18 + rnd(i + 50) * 12;
+      add(`width:${w}px;height:${h}px;background:${petal ? '#f7a8c4' : c};border-radius:${petal ? '80% 10% 80% 10%' : i % 3 ? '3px' : '50%'};${c === '#fff' && !petal ? 'border:2px solid #d9d9d9;' : ''}`,
+        { x: 20 + rnd(i + 7) * 650, st: .29 + rnd(i + 13) * .16, dur: .06 + rnd(i + 21) * .04, s: 1, sway: 30 + rnd(i + 3) * 40, ph: rnd(i + 9) * 6, rot: (rnd(i + 5) > .5 ? 1 : -1) * (360 + rnd(i + 2) * 540) });
+    }
+    for (let i = 0; i < 12; i++) {                         // 小熊餅乾
+      const el = add('width:84px;transform-origin:42px 46px;',
+        { x: 30 + (i * 5 % 12) * 54 + rnd(i + 31) * 30 - 42, st: .31 + rnd(i + 40) * .11, dur: .07, s: .8 + rnd(i + 60) * .4, sway: 18, ph: rnd(i + 70) * 6, rot: (i % 2 ? 1 : -1) * 200 }, 'img');
+      el.src = `img/book32_${3 + 2 * (i % 3)}.png`; el.alt = '';   // 只用上了色的三款（3、5、7）
+    }
+    for (let i = 0; i < 9; i++) {                          // 餅乾碗的星星
+      add('width:44px;height:44px;margin:-22px 0 0 -22px;transform-origin:50% 50%;background:' + (i % 2 ? '#fff' : '#ffe14d') + ';clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)',
+        { star: true, x: 430 + rnd(i + 80) * 190, y: 610 + rnd(i + 90) * 110, st: .37 + i * .012, s: .7 + rnd(i + 95) * .7 });
+    }
+  }
+
+  /* ---------- 版面：舞台等比縮放、量每一幕的位置 ---------- */
+  const acts = [...document.querySelectorAll('.act')];
+  let info = [];
+  function layout() {
+    const vw = innerWidth, vh = innerHeight;
+    const k = vw <= 820 ? Math.min(vw / 700, (vh - 120) / 1000) : Math.min(vw / 700, vh / 1000);
+    document.documentElement.style.setProperty('--k', k.toFixed(4));
+    acts.forEach(a => a.style.height = (+a.dataset.len * 100) + 'vh');
+    info = acts.map(a => ({ el: a, top: a.offsetTop, h: a.offsetHeight }));
+  }
+
+  /* ---------- 章節導覽 ---------- */
+  const nav = $('chapters');
+  const btns = acts.map((a, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `${a.dataset.name}<b>${i + 1}</b>`;
+    b.setAttribute('aria-label', `第 ${i + 1} 幕：${a.dataset.name}`);
+    b.onclick = () => scrollTo({ top: info[i].top + 2, behavior: 'smooth' });
+    nav.appendChild(b); return b;
+  });
+  $('again').onclick = () => scrollTo({ top: 0, behavior: 'smooth' });
+
+  /* ---------- 每一幕的更新函式：先處理鏡頭切換，再跑這一幕的動作 ---------- */
+  const scoped = root => { const m = {}; return id => m[id] || (m[id] = root.querySelector('#' + id)); };
+  const runners = {};
+  acts.forEach(a => {
+    const stage = a.querySelector('.pin > .stage');
+    const run = makeScenes(scoped(stage), stage, dropEls, vid)[a.id];
+    const groups = [...stage.querySelectorAll('.G[data-a]')];
+    runners[a.id] = p => { fadeGroups(groups, p); run(p); };
+  });
+
+  /* ---------- 游標視差：浮在前面的東西（對話框、小鳥、特效…）跟著游標移動，整個畫面微微傾斜 ---------- */
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 只挑「浮在畫面上、不靠邊」的圖層；滿版背景不動，才不會在邊緣露出破口
+  const DEPTH = { '.cap': -8, '#a1bird': 18, '#a1hold': -10, '#a1tree': 14, '#a1leaf': 24, '.pa': 18, '.zz': 24, '.leaf': 28, '#c3wow': 16, '#c3walk': 8,
+    '#d4bub': 14, '#d4bulb': 22, '#e6say1': 16, '#e6say2': 16, '#e6fx': 24, '#e6deco': 8, '#e6end': 12 };
+  Object.entries(DEPTH).forEach(([sel, d]) => document.querySelectorAll(sel).forEach(el => { el.dataset.d = d; el.style.setProperty('--d', d); }));
+  const ptr = { tx: 0, ty: 0, x: 0, y: 0 };
+  {                                                        // 這是使用者自己移動游標才有的動作，系統設成「減少動態」時也保留
+    addEventListener('pointermove', e => {
+      if (e.pointerType === 'touch') return;               // 手指滑動是在捲頁，不拿來當游標
+      ptr.tx = clamp(e.clientX / innerWidth) * 2 - 1;
+      ptr.ty = clamp(e.clientY / innerHeight) * 2 - 1;
+    }, { passive: true });
+    document.addEventListener('pointerleave', () => { ptr.tx = ptr.ty = 0; });
+    addEventListener('blur', () => { ptr.tx = ptr.ty = 0; });
+    // 手機、平板：傾斜裝置（部分瀏覽器不需授權就會送出；iPhone 需要另外授權，這裡不主動要求）
+    addEventListener('deviceorientation', e => {
+      if (e.gamma == null || e.beta == null) return;
+      ptr.tx = Math.max(-1, Math.min(1, e.gamma / 25));
+      ptr.ty = Math.max(-1, Math.min(1, (e.beta - 45) / 25));
+    }, { passive: true });
+  }
+
+  /* ---------- 物件音效：用瀏覽器內建的 Web Audio 合成，不需要音檔；要先按右上角按鈕才會出聲 ---------- */
+  const SFX = (() => {
+    let ctx = null, master = null, wet = null, on = false, noiseBuf = null, sq = 0, stp = 0;
+    // 每個聲音都經過：左右聲道定位 → 乾聲＋殘響（rv = 送進殘響的量）
+    const out = (node, pan = 0, rv = .25) => {
+      const p = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+      if (p.pan) p.pan.value = Math.max(-1, Math.min(1, pan));
+      node.connect(p); p.connect(master);
+      if (rv > 0) { const g = ctx.createGain(); g.gain.value = rv; p.connect(g); g.connect(wet); }
+    };
+    const tone = (f0, f1, dur, type = 'sine', vol = .3, delay = 0, o2 = {}) => {
+      const t = ctx.currentTime + delay, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+      if (o2.vib) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = o2.vib; lg.gain.value = o2.depth || 30; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (o2.att || .008)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(g); out(g, o2.pan || 0, o2.rv == null ? .25 : o2.rv); o.start(t); o.stop(t + dur + .05);
+    };
+    const noise = (dur, f0, f1, q = 1, vol = .3, delay = 0, type = 'bandpass', o2 = {}) => {
+      const t = ctx.currentTime + delay, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = noiseBuf; n.loop = true; f.type = type; f.Q.value = q;
+      f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (o2.att || .01)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      n.connect(f).connect(g); out(g, o2.pan || 0, o2.rv == null ? .25 : o2.rv); n.start(t, Math.random()); n.stop(t + dur + .05);
+    };
+    const r = (a, b) => a + Math.random() * (b - a);         // 每次音高、長短都稍微不同，連續出現才不會一模一樣
+    const rp = () => Math.random() * .8 - .4;
+    // 真實錄音（Kenney 免費 CC0 音效包，放在 audio/sfx/）：讀得到就用錄音，讀不到（例如直接雙擊開檔）就退回合成音
+    const K = 'audio/sfx/kenney_impact-sounds/Audio/', R = 'audio/sfx/kenney_rpg-audio/Audio/';
+    const range = (p, n) => Array.from({ length: n }, (_, i) => p + String(i).padStart(3, '0') + '.ogg');
+    const SMP = {
+      step:  range(K + 'footstep_grass_', 5),                 // 草地腳步
+      thud:  range(K + 'impactSoft_heavy_', 5),               // 落地
+      land:  range(K + 'impactSoft_medium_', 5),              // 跳起落下
+      clap:  range(K + 'impactPunch_medium_', 5),             // 吊床那五聲「啪」
+      knock: range(K + 'impactWood_light_', 5),               // 木頭輕敲（滴答）
+      page:  [1, 2, 3].map(i => R + `bookFlip${i}.ogg`),      // 翻書
+      cloth: [1, 2, 3, 4].map(i => R + `cloth${i}.ogg`),      // 滑下樹幹的摩擦聲
+      door:  [R + 'doorOpen_1.ogg', R + 'doorOpen_2.ogg'],    // 開門
+    };
+    const buf = {}, lastI = {};
+    const loadSamples = () => Object.entries(SMP).forEach(([k, list]) => list.forEach(u =>
+      fetch(u).then(x => x.ok ? x.arrayBuffer() : Promise.reject()).then(a => ctx.decodeAudioData(a))
+        .then(b => (buf[k] = buf[k] || []).push(b)).catch(() => {})));
+    const smp = (k, vol = .8, o2 = {}) => {                  // 播一個錄音；同一組裡隨機挑，不連續挑到同一個
+      const L = buf[k]; if (!L || !L.length) return false;
+      let i = Math.floor(Math.random() * L.length); if (L.length > 1 && i === lastI[k]) i = (i + 1) % L.length; lastI[k] = i;
+      const s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = L[i]; s.playbackRate.value = o2.rate || r(.93, 1.07); g.gain.value = vol;
+      s.connect(g); out(g, o2.pan || 0, o2.rv == null ? .12 : o2.rv); s.start(ctx.currentTime + (o2.delay || 0));
+      return true;
+    };
+    // 這裡刻意不用任何鈴聲、鐵琴、叮叮噹噹的音色
+    const lib = {
+      pop:      () => { const f = r(380, 520); tone(f, f * 2.1, r(.08, .11), 'sine', .32, 0, { pan: rp(), rv: .1 }); },
+      door:     () => smp('door', .7) || lib.pop(),
+      step:     () => { const pan = stp++ % 2 ? -.3 : .3; if (smp('step', .75, { pan, rv: .05 })) return; noise(r(.05, .08), r(260, 380), 160, 1, .3, 0, 'lowpass', { pan, rv: .05 }); tone(r(95, 130), 70, .06, 'sine', .22, 0, { rv: .05 }); },
+      thud:     () => { if (smp('thud', .95, { rv: .1 })) return; tone(170, 48, .22, 'sine', .55, 0, { rv: .1 }); noise(.09, 500, 200, 1, .22, 0, 'lowpass', { rv: .1 }); },
+      whoosh:   () => { const up = Math.random() > .5; noise(r(.35, .5), up ? 300 : 2600, up ? 2600 : 400, 1.2, .24, 0, 'bandpass', { pan: up ? -.5 : .5, rv: .2 }); },
+      wind:     () => { noise(1.4, 500, 900, .7, .16, 0, 'bandpass', { att: .5, pan: -.4, rv: .3 }); noise(1.2, 1200, 700, .7, .08, .3, 'bandpass', { att: .4, pan: .4, rv: .3 }); },
+      rustle:   () => { for (let i = 0; i < 4; i++) noise(r(.05, .09), r(3000, 6000), r(2000, 4000), 1, r(.06, .12), i * r(.05, .08), 'highpass', { pan: rp(), rv: .15 }); },
+      slide:    () => { tone(r(1300, 1600), r(260, 320), r(.5, .65), 'sine', .16, 0, { vib: 9, depth: 22, rv: .15 }); smp('cloth', .55, { rate: r(.8, .95) }); },
+      rise:     () => tone(r(260, 320), r(1100, 1400), r(.5, .65), 'sine', .18, 0, { vib: 8, depth: 18, rv: .15 }),
+      chirp:    () => { const n = 2 + Math.floor(Math.random() * 3), b = r(2000, 2600); for (let i = 0; i < n; i++) tone(b + i * r(80, 200), b * r(1.3, 1.6), r(.06, .09), 'sine', .2, i * r(.09, .13), { pan: rp(), rv: .2 }); },
+      clap:     () => { if (smp('clap', .85, { pan: rp(), rv: .2 })) return; noise(r(.1, .14), r(1600, 2200), 1100, 1.5, .6, 0, 'bandpass', { rv: .25, pan: rp() }); noise(.03, 4200, 3000, 1, .3, 0, 'bandpass', { rv: .2 }); tone(r(170, 210), 70, .09, 'sine', .3, 0, { rv: .1 }); },
+      snore:    () => { tone(r(85, 105), 66, r(.5, .65), 'sawtooth', .05, 0, { vib: 22, depth: 6, rv: .1 }); noise(.5, 1500, 2500, 2, .03, .6, 'bandpass', { att: .2, rv: .2 }); },
+      jump:     () => { tone(r(230, 300), r(600, 760), r(.12, .16), 'sine', .22, 0, { rv: .1 }); noise(.1, 2200, 700, 1, .1, .02, 'bandpass', { pan: rp(), rv: .1 }); smp('land', .5, { delay: .14 }); },
+      nope:     () => { tone(330, 290, .18, 'square', .09, 0, { vib: 14, depth: 10, rv: .1 }); tone(247, 200, .32, 'square', .09, .2, { vib: 10, depth: 12, rv: .1 }); tone(123, 100, .32, 'sine', .2, .2, { rv: .1 }); },
+      idea:     () => { tone(392, 392, .1, 'triangle', .2, 0, { rv: .15 }); tone(587, 587, .1, 'triangle', .2, .1, { rv: .15 }); tone(784, 784, .22, 'triangle', .22, .2, { rv: .2 }); },   // 想到了！三個短音往上
+      tick:     () => smp('knock', .4, { rate: r(1.3, 1.5), rv: .05 }) || tone(r(1500, 1900), 1200, .03, 'square', .06, 0, { rv: .05 }),
+      page:     () => { if (smp('page', .85, { pan: rp(), rv: .1 })) return; noise(r(.18, .24), r(3000, 3800), 700, .8, .2, 0, 'bandpass', { pan: -.4, rv: .15 }); noise(.08, 900, 2400, 1, .08, .14, 'bandpass', { pan: .4, rv: .1 }); },
+      stir:     () => { noise(r(.16, .22), r(350, 500), r(700, 900), 2, .2, 0, 'bandpass', { pan: rp(), rv: .1 }); tone(r(300, 380), 220, .05, 'triangle', .14, .12, { rv: .05 }); },   // 攪麵糊：稠稠的一圈＋木匙輕碰
+      surprise: () => tone(r(380, 460), r(1300, 1600), r(.15, .19), 'triangle', .22, 0, { rv: .15 }),
+      pour:     () => {
+        noise(1.25, 800, 1900, 2, .2, 0, 'bandpass', { att: .12, rv: .2 });
+        noise(1.25, 2500, 4200, 3, .06, 0, 'bandpass', { att: .12, pan: .4, rv: .1 });
+        for (let i = 0; i < 12; i++) tone(r(350, 850), r(800, 1400), .05, 'sine', .09, .08 + i * .09, { pan: rp(), rv: .1 });
+      },
+      squeeze:  () => { noise(r(.13, .17), r(450, 600), r(1500, 1900), 3, .28, 0, 'bandpass', { rv: .1 }); tone(r(200, 250), r(500, 620), .11, 'sine', .16, 0, { rv: .05 }); tone(r(650, 800), r(1000, 1200), .05, 'sine', .22, .13, { rv: .05 }); },
+      firework: () => {
+        const pan = rp() * 1.6;
+        tone(r(450, 550), r(2000, 2600), r(.34, .42), 'sine', .1, 0, { vib: 30, depth: 60, pan, rv: .2 });                    // 咻——升空
+        noise(.5, 3200, 300, .6, .38, .38, 'bandpass', { pan, rv: .45 }); tone(140, 45, .3, 'sine', .4, .38, { pan, rv: .3 });   // 砰
+        for (let i = 0; i < 10; i++) noise(.03, r(3000, 7000), 2000, 2, r(.05, .12), .5 + Math.random() * .6, 'bandpass', { pan: pan + rp(), rv: .3 });   // 劈啪（短促的碎響，不是鈴聲）
+      },
+      tada:     () => {
+        [392, 523.25, 659.25, 783.99].forEach((f, i) => tone(f, f, .16, 'triangle', .2, i * .08, { pan: -.3 + i * .2, rv: .2 }));          // 四個短音往上
+        [523.25, 659.25, 783.99].forEach(f => { tone(f, f, .6, 'triangle', .14, .34, { rv: .3 }); tone(f * 1.003, f * 1.003, .6, 'sawtooth', .025, .34, { rv: .3 }); });  // 收尾和弦（短）
+        tone(65, 65, .5, 'sine', .28, .34, { rv: .1 });
+      },
+    };
+    // 連續音：一直在背景跑、平常音量是 0，捲動時才依捲動速度放大（停下來就停）
+    const BED = {
+      wind: { type: 'bandpass', f: 420, q: .8,  max: .26, rv: .3 },    // 第 1 幕鏡頭穿過森林的風
+      stir: { type: 'bandpass', f: 650, q: 2.6, max: .34, rv: .08 },   // 第 5 幕攪拌麵糊，濾波器來回掃，像湯匙一圈一圈
+      pour: { type: 'highpass', f: 3800, q: .7, max: .2,  rv: .2 },    // 第 5 幕倒鈣粉的沙沙聲
+    };
+    const beds = {};
+    let bedBuf = null;
+    const bed = name => {
+      if (beds[name]) return beds[name];
+      if (!bedBuf) {                                         // 3 秒長的雜訊，循環時比較聽不出重複
+        bedBuf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+        const d = bedBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      const c = BED[name], n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = bedBuf; n.loop = true; f.type = c.type; f.frequency.value = c.f; f.Q.value = c.q; g.gain.value = 0;
+      n.connect(f).connect(g); g.connect(master);
+      if (c.rv) { const w = ctx.createGain(); w.gain.value = c.rv; g.connect(w); w.connect(wet); }
+      n.start(0, Math.random() * 3);
+      return beds[name] = { f, g, c };
+    };
+    const hush = () => Object.values(beds).forEach(b => b.g.gain.setTargetAtTime(0, ctx.currentTime, .05));
+    let played = [];                                         // 最近播過的音效名稱（測試用）
+    return {
+      get on() { return on; },
+      get played() { return played; },
+      get names() { return Object.keys(lib); },
+      get running() { return !!ctx && ctx.state === 'running'; },
+      pause() { if (ctx && ctx.state === 'running') { hush(); ctx.suspend(); } },
+      get samples() { return Object.fromEntries(Object.entries(buf).map(([k, L]) => [k, L.length])); },   // 測試用：每組讀進幾個錄音
+      toggle(want) {                                         // want 省略 = 切換；true / false = 指定開關
+        if (!ctx) {
+          ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const comp = ctx.createDynamicsCompressor();       // 很多聲音疊在一起時不會爆音
+          comp.threshold.value = -14; comp.ratio.value = 6; comp.connect(ctx.destination);
+          master = ctx.createGain(); master.gain.value = .75; master.connect(comp);   // .75 = 音效總音量
+          noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+          const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+          // 殘響：用程式做一段 1.1 秒、慢慢變小的立體聲雜訊當作空間回音
+          const len = Math.floor(ctx.sampleRate * 1.1), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+          for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+          const conv = ctx.createConvolver(); conv.buffer = ir;
+          wet = ctx.createGain(); wet.gain.value = .3; wet.connect(conv); conv.connect(master);
+          loadSamples();
+        }
+        on = want === undefined ? !on : !!want;
+        if (on) { ctx.resume(); if (want === undefined) lib.pop(); } else hush();
+        return on;
+      },
+      // level 0~1：音量比例；fm：濾波頻率倍數（用來做攪拌的來回感）
+      bed(name, level, fm = 1) {
+        if (!on || !ctx || ctx.state !== 'running' || !BED[name]) return;
+        if (!beds[name] && level < .01) return;              // 還沒用到的就先不建立
+        const b = bed(name), t = ctx.currentTime;
+        b.g.gain.setTargetAtTime(b.c.max * Math.max(0, Math.min(1, level)), t, .07);
+        b.f.frequency.setTargetAtTime(b.c.f * fm, t, .04);
+      },
+      get beds() { return Object.fromEntries(Object.entries(beds).map(([k, b]) => [k, +b.g.gain.value.toFixed(3)])); },
+      play(name) { if (on && ctx && ctx.state === 'running' && lib[name]) { try { lib[name](); played.push(name); if (played.length > 40) played.shift(); } catch (e) { console.error('sfx', name, e); } } },
+    };
+  })();
+  window.__sfx = SFX;
+  // 每一幕：捲到哪個進度，哪個物件發出什麼聲音
+  const CUES = {
+    // 散步：開場風聲、進森林樹葉沙沙、小熊出現、小鳥叫著掉下來、落地；抬頭看鳥巢時樹葉聲和鳥叫
+    act1: [[.345, 'rustle'], [.4, 'pop'], [.475, 'chirp'], [.5, 'slide'], [.585, 'chirp'], [.64, 'thud'],
+           [.7, 'rustle'], [.8, 'chirp'], [.93, 'rustle']],
+    // 送小鳥回家：爬樹、滑下來、落地；夥伴出現、梯子；托起小鳥、放回鳥巢後鳥叫；冒出想法
+    act2: [[.02, 'step'], [.055, 'step'], [.09, 'step'], [.15, 'slide'], [.295, 'thud'], [.319, 'pop'], [.367, 'pop'], [.415, 'whoosh'],
+           [.55, 'rise'], [.67, 'chirp'], [.83, 'pop']],
+    // 想長高：走回家、進門；打呼、五聲啪、落葉、坐起來、驚嘆號；跳繩；對話；不行；三格運動
+    act3: [[.02, 'step'], [.041, 'step'], [.062, 'step'], [.083, 'step'], [.1035, 'step'], [.124, 'step'], [.145, 'step'], [.166, 'door'],
+           [.19, 'snore'], [.21, 'snore'], [.225, 'clap'], [.24, 'clap'], [.255, 'clap'], [.262, 'rustle'], [.27, 'clap'], [.285, 'clap'],
+           [.35, 'whoosh'], [.41, 'surprise'],
+           [.4571, 'jump'], [.4857, 'jump'], [.5143, 'jump'], [.5429, 'jump'], [.5714, 'jump'], [.6, 'jump'],
+           [.643, 'jump'], [.676, 'pop'], [.69, 'jump'], [.737, 'jump'],
+           [.815, 'nope'], [.87, 'pop'], [.9, 'pop'], [.93, 'pop']],
+    // 找方法：問、幫忙；翻書；書頁圖示；別的方法；燈泡閃兩下後想到了
+    act4: [[.03, 'pop'], [.15, 'pop'], [.24, 'page'], [.34, 'page'], [.42, 'page'], [.47, 'tick'], [.51, 'tick'], [.55, 'tick'], [.59, 'tick'],
+           [.7, 'pop'], [.8, 'pop'], [.84, 'tick'], [.855, 'tick'], [.87, 'idea'], [.94, 'whoosh']],
+    // 調配：推進門口；攪拌；開瓶、倒鈣；出爐、擠餅乾、完成
+    act5: [[.06, 'whoosh'], [.44, 'pop'], [.705, 'whoosh'],
+           [.76, 'squeeze'], [.78, 'squeeze'], [.8, 'squeeze'], [.82, 'squeeze'], [.84, 'squeeze'], [.86, 'squeeze'], [.885, 'tada']],
+    // 分享：做好了、開心跳；出門；煙火；對話；揮旗；結尾
+    act6: [[.03, 'tada'], [.08, 'jump'], [.12, 'jump'], [.21, 'whoosh'], [.3, 'firework'], [.34, 'firework'], [.375, 'pop'], [.44, 'firework'],
+           [.49, 'whoosh'], [.55, 'whoosh'], [.6, 'pop'], [.87, 'tada']],
+  };
+  const prevP = {};
+  function sfxAt(id, p) {
+    const q = prevP[id]; prevP[id] = p;
+    if (!SFX.on || q == null || p <= q) return;            // 只在往下捲時出聲，往回捲不重播
+    const hit = (CUES[id] || []).filter(c => c[0] > q && c[0] <= p);
+    if (hit.length > 3) SFX.play(hit[hit.length - 1][1]);   // 一次跳過一大段（例如點章節）：只播最後一個，不要一口氣全部響
+    else hit.forEach(c => SFX.play(c[1]));
+  }
+  // 互動音效：點章節、「再看一次」各有自己的聲音
+  document.querySelectorAll('.chapters button').forEach(b => b.addEventListener('click', () => SFX.play('whoosh')));
+  if ($('again')) $('again').addEventListener('click', () => SFX.play('rise'));
+  // 背景音樂：原版的 Koala_0205.mp3，小小聲循環播放，跟聲音按鈕一起開關；開關時淡入淡出
+  const BGM_VOL = .07;                                    // 背景音樂音量（0~1），想大聲一點就調這個
+  let bgmTimer = 0;
+  function bgmFade(on) {
+    const a = $('bgm'); if (!a) return;
+    clearInterval(bgmTimer);
+    if (on) { if (a.paused) { a.volume = 0; a.play().catch(() => {}); } }
+    bgmTimer = setInterval(() => {
+      const to = on ? BGM_VOL : 0, v = a.volume + Math.sign(to - a.volume) * .01;
+      if (Math.abs(to - a.volume) <= .011) { a.volume = to; clearInterval(bgmTimer); if (!on) a.pause(); }
+      else a.volume = Math.max(0, Math.min(1, v));
+    }, 40);
+  }
+  // 聲音預設開啟。瀏覽器規定「使用者碰過頁面」之前不准出聲，所以先試著直接開；
+  // 被擋下的話，等第一次點擊、觸碰或按鍵再開（滾輪不算），按鈕一直顯示「開」。
+  const sndBtn = $('snd');
+  const bgmEl = $('bgm');
+  const audible = () => SFX.running && (!bgmEl || !bgmEl.paused);
+  const showSnd = on => {
+    sndBtn.setAttribute('aria-pressed', on);
+    sndBtn.textContent = on ? '🔊 聲音：開' : '🔇 聲音：關';
+  };
+  function startAudio() { SFX.toggle(true); bgmFade(true); showSnd(true); }
+  function unlockAudio(e) {
+    if (e.target.closest && e.target.closest('#snd')) return;   // 按鈕自己的點擊另外處理
+    if (SFX.on && !audible()) startAudio();
+  }
+  ['pointerdown', 'touchend', 'keydown', 'click'].forEach(t => addEventListener(t, unlockAudio, true));
+  sndBtn.addEventListener('click', () => {
+    if (SFX.on && !audible()) { startAudio(); return; }          // 顯示「開」卻還沒出聲：這一下是在幫它開，不是關掉
+    const on = SFX.toggle();
+    showSnd(on);
+    bgmFade(on);
+  });
+  startAudio();
+  // 切到別的分頁、縮小視窗時，音樂和音效先暫停；回來再接著播
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (bgmEl) bgmEl.pause(); SFX.pause(); }
+    else if (SFX.on) startAudio();
+  });
+
+  // 連續音：每一格都算捲動速度，在對應的段落裡依速度放大音量；不捲就安靜下來
+  let bedSy = scrollY, spd = 0, stirPh = 0;
+  function updateBeds(y) {
+    const d = Math.abs(y - bedSy); bedSy = y;
+    spd += (Math.min(1, d / 22) - spd) * .25;             // 每格捲 22px 以上算最快
+    stirPh += d * .035;
+    const vh = innerHeight;
+    const pOf = id => { const a = info.find(x => x.el.id === id); return a ? (y - a.top) / (a.h - vh) : -1; };
+    const win = (p, a, b) => (p > a && p < b) ? Math.min(1, (p - a) / .02, (b - p) / .02) : 0;   // 段落頭尾 2% 淡入淡出
+    const p1 = pOf('act1'), p5 = pOf('act5');
+    SFX.bed('wind', spd * win(p1, -.02, .45), .75 + spd * .9);
+    SFX.bed('stir', spd * win(p5, .18, .39), 1 + .4 * Math.sin(stirPh));
+    const pr = vid.ready ? [.43 + .25 * VID.pourFrom / VID.end, .43 + .25 * VID.pourTo / VID.end] : [.5, .65];
+    SFX.bed('pour', spd * win(p5, pr[0], pr[1]), .9 + spd * .5);
+  }
+
+  /* ---------- 主迴圈：捲軸位置 → 每一幕的進度 → 畫面 ---------- */
+  let sy = scrollY, last = -1, current = -1;
+  function tick() {
+    if (Math.abs(ptr.tx - ptr.x) > .001 || Math.abs(ptr.ty - ptr.y) > .001) {
+      ptr.x += (ptr.tx - ptr.x) * .08; ptr.y += (ptr.ty - ptr.y) * .08;   // 慢慢跟上，有漂浮感
+      document.documentElement.style.setProperty('--mx', ptr.x.toFixed(4));
+      document.documentElement.style.setProperty('--my', ptr.y.toFixed(4));
+    }
+    const target = scrollY;
+    sy = reduce ? target : sy + (target - sy) * 0.18;     // 輕微平滑，讓動作不會一格一格跳
+    if (Math.abs(target - sy) < 0.3) sy = target;
+    updateBeds(sy);
+    if (sy !== last) {
+      last = sy;
+      const vh = innerHeight;
+      info.forEach((a, i) => {
+        if (sy + vh < a.top - vh || sy > a.top + a.h) return;  // 離太遠的幕不計算
+        const p = clamp((sy - a.top) / (a.h - vh));
+        runners[a.el.id](p);
+        sfxAt(a.el.id, p);
+      });
+      const mid = sy + vh / 2;
+      const idx = Math.max(0, info.findIndex(a => mid >= a.top && mid < a.top + a.h));
+      if (idx !== current) {
+        current = idx;
+        btns.forEach((b, i) => b.classList.toggle('on', i === idx));
+      }
+      const max = document.documentElement.scrollHeight - vh;
+      $('bar').style.width = (100 * sy / Math.max(1, max)).toFixed(2) + '%';
+      // 字幕
+      info.forEach(a => {
+        const p = clamp((sy - a.top) / (a.h - vh));
+        a.el.querySelectorAll('.cap[data-in]').forEach(c => {
+          const o = seg(p, +c.dataset.in, +c.dataset.in + .03) * (1 - seg(p, +c.dataset.out - .03, +c.dataset.out));
+          c.style.opacity = o;
+          c.style.transform = `translate(-50%, ${((1 - o) * 14).toFixed(1)}px)`;
+        });
+      });
+    }
+    requestAnimationFrame(tick);
+  }
+
+  addEventListener('resize', () => { layout(); last = -1; });
+  addEventListener('load', () => { layout(); last = -1; });
+  layout();
+  acts.forEach(a => runners[a.id](0));
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
